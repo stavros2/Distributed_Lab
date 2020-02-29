@@ -1,43 +1,49 @@
-from collections import OrderedDict
-
-import binascii
-
 import Crypto
-import Crypto.Random
 from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
-import requests
-from flask import Flask, jsonify, request, render_template
+import hashlib
+import copy
 
 
 class Transaction:
 
-    def __init__(self, sender_address, sender_private_key, recipient_address, value):
-
-
-        ##set
-
-
-
-        #self.sender_address: To public key του wallet από το οποίο προέρχονται τα χρήματα
-        #self.receiver_address: To public key του wallet στο οποίο θα καταλήξουν τα χρήματα
-        #self.amount: το ποσό που θα μεταφερθεί
-        #self.transaction_id: το hash του transaction
-        #self.transaction_inputs: λίστα από Transaction Input 
-        #self.transaction_outputs: λίστα από Transaction Output 
-        #selfSignature
+    def __init__(self, sender_address, sender_private_key, recipient_address, value, utxo):
+        self.sender_address = sender_address;
+        self.receiver_adress = recipient_address;
+        self.amount = value;
+        self.transaction_id = 0;
+        self.transaction_outputs = [];
+        self.transaction_inputs = utxo;
+        self.transaction_id = self.myHash();
+        self.signature = self.sign_transaction(sender_private_key);
 
 
     
-
+    def myHash(self):
+        # calculating the hash value of the transaction
+        transDict = self.to_dict();
+        transDict.pop('transaction_id');
+        string = str(transDict);
+        string = string.encode('utf-8');
+        return hashlib.sha256(string).hexdigest();
 
     def to_dict(self):
-        return self.__dict__
+        return copy.deepcopy(self.__dict__)
 
-    def sign_transaction(self):
+    def sign_transaction(self, keyBytes):
         """
         Sign transaction with private key
         """
+        key = RSA.importKey(keyBytes)
+        message = self.to_dict();
+        string = str(message);
+        string = string.encode('utf-8')
+        h = SHA.new(string);
+        signer = PKCS1_v1_5.new(key);
+        signature = signer.sign(h);
+        return signature;
+    
+        
        

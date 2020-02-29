@@ -16,9 +16,10 @@ from uuid import uuid4
 class wallet:
     def __init__(self):
         self.transactions = [];
-        self.private_key = RSA.generate(2048);
-        self.public_key = self.private_key.publickey();
-        self.address = self.public_key.exportKey();
+        temp = RSA.generate(2048)
+        self.private_key = temp.exportKey();
+        self.public_key = temp.publickey().exportKey();
+        self.address = self.public_key;
 
     def balance(self):
         sum = 0;

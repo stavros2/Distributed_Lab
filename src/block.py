@@ -2,8 +2,7 @@
 from time import time;
 import hashlib
 import json
-
-
+import copy;
 
 class Block:
     def __init__(self, previousHash, prevIndex):
@@ -17,12 +16,11 @@ class Block:
         
     def myHash(self):
         # calculating the hash value of the block
-        blockDict = self.__dict__;
+        blockDict = copy.deepcopy(self.__dict__);
         blockDict.pop('current_hash');
         string = json.dumps(blockDict);
         string = string.encode('utf-8');
         return hashlib.sha256(string).hexdigest();
-		#calculate self.hash
         
     def add_transaction(self, transaction):
         # adding a transaction to the block
