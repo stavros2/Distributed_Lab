@@ -26,4 +26,3 @@ class wallet:
         for transaction in self.transactions:
             sum += transaction.amount;
         return sum;
-

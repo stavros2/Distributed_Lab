@@ -9,3 +9,10 @@ class blockchain():
     def add_block(self, blockItem):
         self.listOfBlocks.append(blockItem);
         self.length += 1;
+        
+    def get_transactions(self):
+        trans = [];
+        for blockItem in selflistOfBlocks:
+            for tran in blockItem.listOfTransactions:
+                trans.append(tran);
+        return trans;

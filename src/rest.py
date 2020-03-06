@@ -4,7 +4,7 @@ from flask_cors import CORS
 
 
 import block
-import node
+#import node
 import blockchain
 import wallet
 import transaction
@@ -17,7 +17,7 @@ import wallet
 
 app = Flask(__name__)
 CORS(app)
-blockchain = Blockchain()
+blockchain = blockchain.blockchain()
 
 
 #.......................................................................................
@@ -28,7 +28,7 @@ blockchain = Blockchain()
 
 @app.route('/transactions/get', methods=['GET'])
 def get_transactions():
-    transactions = blockchain.transactions
+    transactions = blockchain.get_transactions();
 
     response = {'transactions': transactions}
     return jsonify(response), 200
@@ -42,7 +42,8 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
+    parser.add_argument('-b', '--bootstrap', action='store_true', help='is this the bootstrap node?')
     args = parser.parse_args()
     port = args.port
-
+    isIt = args.bootstrap;
     app.run(host='127.0.0.1', port=port)

@@ -3,6 +3,13 @@ import wallet
 import constants
 import blockchain
 
+from Crypto.Hash import SHA
+from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_v1_5
+
+import hashlib
+import copy
+
 
 class node:
     def __init__():
@@ -11,15 +18,29 @@ class node:
 		#self.chain
 		#self.current_id_count
 		#self.NBCs
-		self.wallet = wallet.wallet()
+        self.myWallet = self.create_wallet()
 
 		#slef.ring[]   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
 
+    def verify_transaction(trans):
+        transDict = trans.to_dict();
+        transDict.pop('signature');
+        transString = str(transDict);
+        transString = transString.encode();
+        hTrans = SHA.new(transString);
+        verifier = PKCS1_v1_5.new(RSA.importKey(trans.sender_address));
+        return verifier.verify(hTrans, transString)
+        
+        
+    def create_new_block(lastBlock):
+        #create a new block based on the last one of the chain
+        newBlock = block.Block(lastBlock.current_hash, lastBlock.index);
+        return newBlock;
 
-    def create_new_block():
-
-	def create_wallet():
+    def create_wallet():
 		#create a wallet for this node, with a public key and a private key
+        new_wallet = wallet.wallet();
+        return new_wallet;
 
 	def register_node_to_ring():
 		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
