@@ -1,5 +1,3 @@
-import block
-
 class blockchain():
     def __init__(self):
         self.listOfBlocks = [];
@@ -12,7 +10,7 @@ class blockchain():
         
     def get_transactions(self):
         trans = [];
-        for blockItem in selflistOfBlocks:
+        for blockItem in self.listOfBlocks:
             for tran in blockItem.listOfTransactions:
                 trans.append(tran);
         return trans;

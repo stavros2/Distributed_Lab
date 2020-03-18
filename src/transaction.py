@@ -4,6 +4,7 @@ from Crypto.Signature import PKCS1_v1_5
 
 import hashlib
 import copy
+import json
 
 
 class Transaction:
@@ -12,19 +13,14 @@ class Transaction:
         self.sender_address = sender_address;
         self.receiver_adress = recipient_address;
         self.amount = value;
-        self.transaction_id = 0;
         self.transaction_outputs = [];
         self.transaction_inputs = utxo;
         self.transaction_id = self.myHash();
         self.signature = self.sign_transaction(sender_private_key);
 
-
-    
     def myHash(self):
         # calculating the hash value of the transaction
-        transDict = self.to_dict();
-        transDict.pop('transaction_id');
-        string = str(transDict);
+        string = self.to_json();
         string = string.encode('utf-8');
         return hashlib.sha256(string).hexdigest();
 
@@ -38,11 +34,13 @@ class Transaction:
         key = RSA.importKey(keyBytes)
         message = self.to_dict();
         string = str(message);
-        string = string.encode('utf-8')
+        string = string.encode()
         h = SHA.new(string);
         signer = PKCS1_v1_5.new(key);
         signature = signer.sign(h);
         return signature;
-
+    
+    def to_json(self):
+        transDict = self.to_dict();
+        return json.dumps(transDict, default = str);
         
-       
