@@ -12,9 +12,17 @@ import copy
 
 
 class node:
-    def __init__():
-        self.NBC=100;
-        self.chain = blockhain.blockchain();
+    def __init__(self):
+        self.chain = None;
+        self.ip = None;
+        self.port = None;
+        self.myWallet = None;
+    
+    
+    def __init__(self, myIp, myPort, imeBootstrap, ipBootstrap, portBootstrap, N):
+        self.chain = blockchain.blockchain();
+        self.ip = myIp;
+        self.port = myPort;
 		#self.chain
 		#self.current_id_count
 		#self.NBCs
@@ -22,71 +30,73 @@ class node:
 
 		#slef.ring[]   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
 
-    def verify_transaction(trans):
+    def verify_transaction(self, trans):
         transDict = trans.to_dict();
         transDict.pop('signature');
         transString = str(transDict);
         transString = transString.encode();
         hTrans = SHA.new(transString);
         verifier = PKCS1_v1_5.new(RSA.importKey(trans.sender_address));
-        return verifier.verify(hTrans, transString)
+        return verifier.verify(hTrans, trans.signature)
         
         
-    def create_new_block(lastBlock):
+    def create_new_block(self, lastBlock):
         #create a new block based on the last one of the chain
         newBlock = block.Block(lastBlock.current_hash, lastBlock.index);
         return newBlock;
 
-    def create_wallet():
+    def create_wallet(self):
 		#create a wallet for this node, with a public key and a private key
         new_wallet = wallet.wallet();
         return new_wallet;
 
-	def register_node_to_ring():
+#	def register_node_to_ring():
 		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
 
 
-	def create_transaction(sender, receiver, signature):
+	#def create_transaction(sender, receiver, signature):
 		#remember to broadcast it
 
 
-	def broadcast_transaction():
+#	def broadcast_transaction():
 
 
 
 
 
-	def validdate_transaction():
+#	def validate_transaction():
 		#use of signature and NBCs balance
 
 
-	def add_transaction_to_block():
+#	def add_transaction_to_block():
 		#if enough transactions  mine
+        
 
 
 
-	def mine_block():
+#	def mine_block():
 
 
 
-	def broadcast_block():
+#	def broadcast_block():
 
 
 		
 
-	def valid_proof(.., difficulty=MINING_DIFFICULTY):
+
+#	def valid_proof(.., difficulty = constants.MINING_DIFFICULTY):
 
 
 
 
 	#concencus functions
 
-	def valid_chain(self, chain):
+#	def valid_chain(self, chain):
 		#check for the longer chain accroose all nodes
 
 
-	def resolve_conflicts(self):
+#	def resolve_conflicts(self):
 		#resolve correct chain
 
 
