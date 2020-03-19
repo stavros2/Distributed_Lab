@@ -28,7 +28,9 @@ if __name__ == '__main__':
     while(1):
         printNewLine();
         print("Give a command");
+        printNewLine();
         wholeLine = input();
+        printNewLine();
         splitLine = wholeLine.split(' ');
         command = splitLine[0];
         args = splitLine[1::];
@@ -57,11 +59,15 @@ if __name__ == '__main__':
             printHelp();
             
         elif command.lower() == 'clear':
-            os.system('cls');
+            if os.name == 'nt': 
+                os.system('cls');
+            else:
+                os.system('clear');    
             
         elif command.lower() == 'exit':
             exit();
             
         else:
             print("Invalid command. Please give a valid command or type help to read the manual");    
+        
         
