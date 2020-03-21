@@ -5,25 +5,48 @@ from Crypto.Signature import PKCS1_v1_5
 import hashlib
 import copy
 import json
-
+import binascii
 
 class Transaction:
 
-    def __init__(self, sender_address, sender_private_key, recipient_address, value, utxo):
+    def __init__(self, sender_address, sender_private_key, recipient_address, value, senderID = 0, receiverID = 0, genesis = False, inputs = [], outputs =[]):
         self.sender_address = sender_address;
-        self.receiver_adress = recipient_address;
+        self.receiver_address = recipient_address;
         self.amount = value;
-        self.transaction_outputs = [];
-        self.transaction_inputs = utxo;
+        self.transaction_outputs = outputs;
+        self.transaction_inputs = inputs;
         self.transaction_id = self.myHash();
-        self.signature = self.sign_transaction(sender_private_key);
+        if genesis:
+            self.transaction_outputs = [{'id': receiverID, 'tid':self.transaction_id, 'amount':value}]
+        else:
+            self.outputUTXOS(receiverID, senderID);
+        if (sender_address == '0'):
+            self.signature = None;
+        else:
+            self.signature = self.sign_transaction(sender_private_key);
+            
+
 
     def myHash(self):
         # calculating the hash value of the transaction
-        string = self.to_json();
-        string = string.encode('utf-8');
+        string = json.dumps(self.to_dict());
+        string = string.encode();
         return hashlib.sha256(string).hexdigest();
 
+
+    def outputUTXOS(self, receiverID, senderID):
+        mysum = 0;
+        temp = [];
+        for utxo in self.transaction_inputs:
+            mysum += utxo['amount'];
+        if mysum - self.amount > 0:
+            temp.append({'id': str(senderID), 'tid': self.transaction_id, 'amount': mysum - self.amount})
+        temp.append({'id': str(receiverID), 'tid': self.transaction_id, 'amount': self.amount})
+        self.transaction_outputs = temp;
+        
+    def add_utxos(self, utxos):
+        self.transaction_inputs = utxos;
+        
     def to_dict(self):
         return copy.deepcopy(self.__dict__)
 
@@ -31,16 +54,12 @@ class Transaction:
         """
         Sign transaction with private key
         """
-        key = RSA.importKey(keyBytes)
+        key = RSA.importKey(binascii.unhexlify(keyBytes))
         message = self.to_dict();
-        string = str(message);
+        string = json.dumps(message)
         string = string.encode()
         h = SHA.new(string);
         signer = PKCS1_v1_5.new(key);
         signature = signer.sign(h);
-        return signature;
-    
-    def to_json(self):
-        transDict = self.to_dict();
-        return json.dumps(transDict, default = str);
+        return binascii.hexlify(signature).decode();
         

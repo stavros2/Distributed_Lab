@@ -1,10 +1,15 @@
 from argparse import ArgumentParser
 import requests; 
 import os;
+import signal;
 
 def printNewLine():
     print("--------------------------------------------");
 
+def terminating(sig, frame):
+    exit()
+
+signal.signal(signal.SIGINT, terminating);
 
 def printHelp():
     print("You can select one of the following commands");
@@ -40,7 +45,7 @@ if __name__ == '__main__':
                 print("Sorry, this command takes 2 arguments.")
                 print("If you are not sure about usage of this command type help and read the CLI manual");
                 continue;
-            requestData = '{"id":' + args[0] + ', "amount":' + args[1] + '}';
+            requestData = '{"id": "' + args[0] + '", "amount":' + args[1] + '}';
             url = baseURL + "newTransaction";
             response = requests.post(url, data = requestData);
             print(response.json())
