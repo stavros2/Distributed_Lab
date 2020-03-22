@@ -17,10 +17,11 @@ from time import sleep
 
 class node:
     def __init__(self, myIp, myPort, imeBootstrap, ipBootstrap, portBootstrap, N):
+        print("init kollo dame");
         self.otherNodeMined = threading.Event();
         self.otherNodeMined.clear();
         self.mining = False;
-        self.letsMine = threading.Thread(target = self.dummy);
+        self.allow = threading.Event();
         self.ip = myIp;
         self.port = myPort;
         self.ipBootstrap = ipBootstrap;
@@ -33,7 +34,7 @@ class node:
             self.id = 0;
             self.chain = blockchain.blockchain();
             self.ring = dict();
-            genesis = block.Block(1, -1);
+            genesis = block.Block(1, -1, self.id);
             genesisTransaction = transaction.Transaction('0', '0', self.myWallet.address, N * 100, receiverID = '0', genesis = True);
             genesis.add_transaction(genesisTransaction);
             genesisUTXO = genesisTransaction.transaction_outputs[0]
@@ -55,13 +56,14 @@ class node:
             self.id = responseDict['id'];
             self.chain = self.reconstructChain(responseDict['chain']);
             if not self.valid_chain(self.chain):
-                exit(0)
+                exit();
             else:
                 print("Chain OK, got my Chain")
             self.ring = json.loads(responseDict['ring'])
             self.currentBlock = self.create_new_block()
 
     def verify_transaction(self, trans):
+        print("verify trans kollo dame");
         transDict = trans.to_dict();
         transDict.pop('signature');
         transString = json.dumps(transDict);
@@ -72,35 +74,37 @@ class node:
         
         
     def create_new_block(self):
+        print("create new block kollo dame");
         #create a new block based on the last one of the chain
-        newBlock = block.Block(self.chain.listOfBlocks[self.chain.length - 1].current_hash, self.chain.listOfBlocks[self.chain.length - 1].index);
+        newBlock = block.Block(self.chain.listOfBlocks[self.chain.length - 1].current_hash, self.chain.listOfBlocks[self.chain.length - 1].index, self.id);
         return newBlock;
 
     def create_wallet(self):
+        print("create wallet kollo dame");
 		#create a wallet for this node, with a public key and a private key
         new_wallet = wallet.wallet();
         return new_wallet;
     
     def validate_transaction(self, trans):
-		 #verification of signature and enough NBC's
-         asked = '0';
-         for k in self.ring:
-             if self.ring[k]['address'] == trans.sender_address:
-                 asked = k;
+        print("verify trans kollo dame");
+		#verification of signature and enough NBC's
+        asked = '0';
+        for k in self.ring:
+            if self.ring[k]['address'] == trans.sender_address:
+                asked = k;
          
-         askedBalance = 0;
-         
-         for utxo in self.ring[asked]['utxos']:
-             askedBalance += utxo['amount'];
+        askedBalance = 0;
+        for utxo in self.ring[asked]['utxos']:
+            askedBalance += utxo['amount'];
              
-         if not self.verify_transaction(trans):
-             print("not a valid signature");
-             return False;
-         elif askedBalance < trans.amount:
-             print("not enough NBC's");
-             return True;
-         else:
-             return True;
+        if not self.verify_transaction(trans):
+            print("not a valid signature");
+            return False;
+        elif askedBalance < trans.amount:
+            print("not enough NBC's");
+            return True;
+        else:
+            return True;
          
     def dummy(self, receiver, amount):
         sleep(1)
@@ -114,9 +118,11 @@ class node:
                 requests.post(url, data = json.dumps(requestData));
 
     def dummy3(self):
-        sleep(1);
+        sleep(0.1);
+        self.mine_block();
     
     def register_node_to_ring(self, newNodeIp, newNodePort, newNodeAddress):
+        print("register node to ring kollo dame");
 		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
         if self.current_id_count == self.number:
@@ -143,6 +149,7 @@ class node:
         
     
     def reconstructChain(self, chainJson):
+        print("reconstruct chain kollo dame");
         #input is a dictionary. outputs a Blockchain Object
         chainDict = json.loads(chainJson);
         newL = chainDict['length'];
@@ -157,8 +164,10 @@ class node:
         return blockchain.blockchain(newL, temp)
     
     def reconstructBlock(self, blockDict):
+        print("reconstruct Block kollo dame");
         #input is a dictionary. outputs a Block Object
         tempBlock = block.Block();
+        tempBlock.creator = blockDict['creator']
         tempBlock.current_hash = blockDict['current_hash'];
         tempBlock.index = blockDict['index'];
         tempBlock.nonce = blockDict['nonce'];
@@ -171,6 +180,7 @@ class node:
         return tempBlock;
     
     def reconstructTrans(self, transDict):
+        print("reconstrct trans kollo dame");
         #input is a dictionary. outputs a Transaction Object
         tempTrans = transaction.Transaction('0', '0', self.myWallet.address, 0);
         tempTrans.amount = transDict['amount'];
@@ -183,9 +193,9 @@ class node:
         return tempTrans;
         
     def create_transaction(self, receiver, amount):
+        print("create trans kollo dame");
 		#remember to broadcast it
         #REMEMBER TO ADD UTXOS
-        print("Create Transaction");
         inputUTXOS = [];
         outputUTXOS = [];
         myAmount = 0;
@@ -209,13 +219,12 @@ class node:
         
         self.broadcast_transaction(newTrans);
         self.currentBlock.add_transaction(newTrans);
-      #  if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
-           # self.mine_block();
-       #     stM = threading.Thread(target=self.dummy3)
-        
-       #stM.start();
+        if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
+            stM = threading.Thread(target = self.dummy3);
+            stM.start()
             
     def broadcast_transaction(self, trans):
+        print("broadcast trans kollo dame");
         for k in self.ring:
             if k != str(self.id):
                 url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/receiveTransaction";
@@ -224,6 +233,7 @@ class node:
                 
                 
     def add_transaction_to_block(self, transDict):
+        print("add trans kollo dame");
 		#if enough transactions  mine
         newTrans = self.reconstructTrans(transDict);
         if self.validate_transaction(newTrans):
@@ -234,13 +244,13 @@ class node:
                 self.ring[utxo['id']]['utxos'].append(utxo);
                 if utxo['id'] == str(self.id):
                     self.myWallet.transactions.append(utxo)
-       # if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
-            #self.mine_block();
-        #    stM = threading.Thread(target=self.dummy3)
-         #   stM.start();
+        if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
+            stM = threading.Thread(target = self.dummy3);
+            stM.start();
             
             
     def mine_block(self):
+        print("mine block kollo dame");
         self.mining = True;
         self.otherNodeMined.clear();
         while self.currentBlock.current_hash[:constants.MINING_DIFFICULTY] != '0' * constants.MINING_DIFFICULTY and not self.otherNodeMined.is_set():
@@ -255,6 +265,7 @@ class node:
     
     
     def broadcast_block(self):
+        print("broadcast block kollo dame");
         for k in self.ring:
             if k != self.id:
                 url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/receiveBlock";
@@ -263,13 +274,17 @@ class node:
     
     
     def valid_proof(self, blockToCheck):
-        return blockToCheck.current_hash[:constants.MINING_DIFFICULTY] == '0' * constants.MINING_DIFFICULTY and blockToCheck.previous_hash == self.chain.listOfBlocks[blockToCheck.index - 1].current_hash;
+        print("valid proof kollo dame");
+        return blockToCheck.current_hash[:constants.MINING_DIFFICULTY] == '0' * constants.MINING_DIFFICULTY and blockToCheck.previous_hash == self.chain.lastBlock().current_hash
 
 
     def valid_chain(self, chain):
+        print("valid chian kollo dame");
 		#checking validity of chain
-        for blockItem in chain.listOfBlocks[1::]:
-            if not self.valid_proof(blockItem):
+        noElem = len(chain.listOfBlocks);
+        
+        for i in range(1, noElem):
+            if not chain.listOfBlocks[i].previous_hash == chain.listOfBlocks[i - 1].current_hash:
                 return False;
         return True;
 

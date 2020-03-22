@@ -6,10 +6,6 @@ import json
 
 import node
 import constants;
-import block;
-
-
-### JUST A BASIC EXAMPLE OF A REST API WITH FLASK
 
 thisNode = None;
 
@@ -26,7 +22,11 @@ def viewTransactions():
     lastBlock = thisNode.chain.listOfBlocks[thisNode.chain.length - 1];
     text = ''; 
     for trans in lastBlock.listOfTransactions:
-        text += json.dumps(trans.to_dict())
+        #text += json.dumps(trans.to_dict())
+        text += str(trans.transaction_id);
+        text += ' ';
+        text += str(trans.amount)
+        text += ' ';
     response = {'transactions': text};
     return jsonify(response), 200;
 
@@ -55,13 +55,22 @@ def newTranscation():
         return jsonify(response), 502
     
     thisNode.create_transaction(nodeID, amount);
+    print("Back to REST")
     response = {'message': ('Sending ' + str(amount) + ' to node ' + str(nodeID))};
+    print("Everything OK")
     return jsonify(response), 200;
 
 @app.route('/getBalance', methods=['GET'])
 def getBalance():
-    balance = thisNode.myWallet.balance();
-    response = {'balance': balance};
+    #balance = thisNode.myWallet.balance();
+    #response = {'balance': balance};
+    response = {}
+    for nodeI in thisNode.ring:
+        nodeBal = 0 ;
+        for utxo in thisNode.ring[nodeI]['utxos']:
+            nodeBal += utxo['amount'];
+        response[nodeI] = nodeBal;
+    response['maBalance'] = thisNode.myWallet.balance()
     return jsonify(response), 200
 
 @app.route('/registerNewNode', methods=['POST'])
@@ -89,9 +98,27 @@ def receiveBlock():
         thisNode.otherNodeMined.set();
         thisNode.chain.add_block(blockInCheck);
         thisNode.currentBlock = thisNode.create_new_block();
+        print(thisNode.chain.length)
         return '{"message": "block received!"}', 200;
 
     return '{"message": "block wasnt right!"}', 402;
+
+@app.route("/receiveNewNodeInfo", methods=['POST'])
+def receiveNewNodeInfo():
+    requestData = json.loads(request.data);
+    nodeID = requestData.pop('id');
+    thisNode.ring[nodeID] = requestData;
+    
+    return '{"message": "Node added to ring!"}', 200;
+
+@app.route("/printBlock", methods=['GET'])
+def printBlock():
+    return jsonify(thisNode.currentBlock.to_json()), 200;
+
+@app.route("/printChain", methods=['GET'])
+def printChain():
+    return jsonify(thisNode.chain.to_json()), 200;
+
 # run it once fore every node
 
 if __name__ == '__main__':
