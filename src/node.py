@@ -1,262 +1,261 @@
 import block
 import wallet
-import constants
-import blockchain
+import json
 import requests
+import blockchain
+import threading
 import transaction
 
+import binascii
+import Crypto
+import Crypto.Random
 from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
-import binascii
-import hashlib
-import copy
-import json
+import sys
 import threading
-from time import sleep
+import time
+from urllib.parse import urlparse
+from uuid import uuid4
+import copy
+from flask import Flask, jsonify, request
 
+no_mine = threading.Event()
+no_mine.set()
 
-class node:
-    def __init__(self, myIp, myPort, imeBootstrap, ipBootstrap, portBootstrap, N):
-        self.otherNodeMined = threading.Event();
-        self.otherNodeMined.clear();
-        self.mining = False;
-        self.letsMine = threading.Thread(target = self.dummy);
-        self.ip = myIp;
-        self.port = myPort;
-        self.ipBootstrap = ipBootstrap;
-        self.portBootstrap = portBootstrap;
-        self.number = N;
-        self.myWallet = self.create_wallet()
-        self.current_id_count = 1;
-        
-        if imeBootstrap:
-            self.id = 0;
-            self.chain = blockchain.blockchain();
-            self.ring = dict();
-            genesis = block.Block(1, 0);
-            genesisTransaction = transaction.Transaction('0', '0', self.myWallet.address, N * 100, receiverID = '0', genesis = True);
-            genesis.add_transaction(genesisTransaction);
-            genesisUTXO = genesisTransaction.transaction_outputs[0]
-            self.myWallet.transactions.append(genesisUTXO)
-            tempDict = dict();
-            tempDict['ip'] = self.ip;
-            tempDict['port'] = self.port;
-            tempDict['address'] = self.myWallet.address;
-            tempDict['utxos'] = [genesisUTXO];
-            self.ring['0'] = tempDict;
-            self.chain.add_block(genesis);
-            self.currentBlock = self.create_new_block()
-            
+class node():
+    def __init__(self, bootstrap, number,port, ipbootstrap, ip_dikia_mou):
+        self.port=port
+        self.chain = blockchain.Blockchain()
+        self.current_id_count = 0 #register_node_to_ring()
+        self.wallet = wallet.wallet()
+        #self.NBCs = self.wallet.balance()
+        temp = "http://" + ipbootstrap + ":5000"
+        self.ring = [temp]#here we store information for every node, as its id, its address (ip:port) its public key and its balance
+        self.nei = number
+        self.public_key_list = []
+        self.myip = ip_dikia_mou
+
+        if(bootstrap == "0"):
+            self.public_key_list = [self.wallet.public_key]
+            self.id = 0
+            self.chain.create_genesis(number, self.public_key_list[0])
+            #print("my chain list " , self.chain.list[0].output())
+            self.wallet.add_genesis(self.chain.list[0].output())
+            self.e = threading.Event()
+            self.e.clear()
+            t2 = threading.Thread( target = self.init)
+            t2.start()
         else:
-            url = "http://" + ipBootstrap + ":" + str(portBootstrap) + "/registerNewNode"
-            requestData = '{"ip":"' + myIp + '", "port":' + str(myPort) + ', "address":"' + str(self.myWallet.address) +'"}';
-            response = requests.post(url, data = requestData);
-            responseDict = json.loads(response.json());
-            self.id = responseDict['id'];
-            self.chain = self.reconstructChain(responseDict['chain']);
-            self.ring = json.loads(responseDict['ring'])
-            self.currentBlock = self.create_new_block()
+            self.my_reg()
 
-    def verify_transaction(self, trans):
-        transDict = trans.to_dict();
-        transDict.pop('signature');
-        transString = json.dumps(transDict);
-        transString = transString.encode();
-        hTrans = SHA.new(transString);
-        verifier = PKCS1_v1_5.new(RSA.importKey(binascii.unhexlify(trans.sender_address)));
-        return verifier.verify(hTrans, binascii.unhexlify(trans.signature))
-        
-        
-    def create_new_block(self):
-        #create a new block based on the last one of the chain
-        newBlock = block.Block(self.chain.listOfBlocks[self.chain.length - 1].current_hash, self.chain.listOfBlocks[self.chain.length - 1].index);
-        return newBlock;
+    def init(self):
+        self.e.wait()
+        time.sleep(3)
+        for i, a in enumerate(self.ring[1:]):
+        	self.send(i+1, a)
+        time.sleep(3)
 
-    def create_wallet(self):
-		#create a wallet for this node, with a public key and a private key
-        new_wallet = wallet.wallet();
-        return new_wallet;
-    
-    def validate_transaction(self, trans):
-		 #verification of signature and enough NBC's
-         asked = '0';
-         for k in self.ring:
-             if self.ring[k]['address'] == trans.sender_address:
-                 asked = k;
-         
-         askedBalance = 0;
-         
-         for utxo in self.ring[asked]['utxos']:
-             askedBalance += utxo['amount'];
-             
-         if not self.verify_transaction(trans):
-             print("not a valid signature");
-             return False;
-         elif askedBalance < trans.amount:
-             print("not enough NBC's");
-             return True;
-         else:
-             return True;
-         
-    def dummy(self, receiver, amount):
-        sleep(3)
-        self.create_transaction(receiver, 100)
-    
-    def register_node_to_ring(self, newNodeIp, newNodePort, newNodeAddress):
-		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
-		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
-        if self.current_id_count == self.number:
-            return("{message: ring full}");
-        
-        tempDict = dict();
-        tempDict['ip'] = newNodeIp;
-        tempDict['port'] =  newNodePort;
-        tempDict['address'] = newNodeAddress;
-        tempDict['utxos'] = [];
-        self.ring[str(self.current_id_count)] = tempDict;
-        
-        message = {'id': self.current_id_count, 'chain': self.chain.to_json(), 'ring': json.dumps(self.ring)};
-        message = json.dumps(message);
-        
-        crT = threading.Thread(target=self.dummy, args = (self.current_id_count, 100, ))
-        crT.start();
-        #self.create_transaction(self.current_id_count, 100);
-        self.current_id_count += 1;
-        return message;
-        
-    
-    def reconstructChain(self, chainJson):
-        #input is a dictionary. outputs a Blockchain Object
-        chainDict = json.loads(chainJson);
-        newL = chainDict['length'];
-        newList = chainDict['listOfBlocks']
-        temp = [];
-        
-        for blockStr in newList:
-            blockDict = json.loads(blockStr)
-            tempBlock = self.reconstructBlock(blockDict);
-            temp.append(tempBlock);
-                
-        return blockchain.blockchain(newL, temp)
-    
-    def reconstructBlock(self, blockDict):
-        #input is a dictionary. outputs a Block Object
-        tempBlock = block.Block();
-        tempBlock.current_hash = blockDict['current_hash'];
-        tempBlock.index = blockDict['index'];
-        tempBlock.nonce = blockDict['nonce'];
-        tempBlock.previous_hash = blockDict['previous_hash'];
-        tempBlock.timestamp = blockDict['timestamp'];
-        tempBlock.listOfTransactions = [];
-        for transDict in blockDict['listOfTransactions']:
-            tempTrans = self.reconstructTrans(transDict);
-            tempBlock.listOfTransactions.append(tempTrans)
-        return tempBlock;
-    
-    def reconstructTrans(self, transDict):
-        #input is a dictionary. outputs a Transaction Object
-        tempTrans = transaction.Transaction('0', '0', self.myWallet.address, 0);
-        tempTrans.amount = transDict['amount'];
-        tempTrans.receiver_address = transDict['receiver_address'];
-        tempTrans.sender_address = transDict['sender_address'];
-        tempTrans.signature = transDict['signature'];
-        tempTrans.transaction_id = transDict['transaction_id'];
-        tempTrans.transaction_inputs = transDict['transaction_inputs'];
-        tempTrans.transaction_outputs = transDict['transaction_outputs'];
-        return tempTrans;
-        
-    def create_transaction(self, receiver, amount):
-		#remember to broadcast it
-        #REMEMBER TO ADD UTXOS
-        inputUTXOS = [];
-        outputUTXOS = [];
-        myAmount = 0;
-        for utxo in self.myWallet.transactions:
-            myAmount += utxo['amount'];
-            inputUTXOS.append(utxo);
-            if myAmount >= amount:
-                break;
-        
-        for utxo in inputUTXOS:
-            self.myWallet.transactions.remove(utxo);
-        
-        
-        newTrans = transaction.Transaction(self.myWallet.address, self.myWallet.private_key, self.ring[str(receiver)]['address'], amount, receiverID = str(receiver), senderID = str(self.id), inputs = inputUTXOS);
-        outputUTXOS = newTrans.transaction_outputs;
-        print(newTrans);
-        print(outputUTXOS)
-        for utxo in outputUTXOS:
-            self.ring[utxo['id']]['utxos'].append(utxo);
-            if utxo['id'] == str(self.id):
-                
-                self.myWallet.transactions.append(utxo);
-        
-        self.broadcast_transaction(newTrans);
-        self.currentBlock.add_transaction(newTrans);
-        if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
-            self.mine_block();
-            
-    def broadcast_transaction(self, trans):
-        for k in self.ring:
-            if k != str(self.id):
-                url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/receiveTransaction";
-                requestData = json.dumps(trans.to_dict());
-                requests.post(url, data = requestData);
-                
-                
-    def add_transaction_to_block(self, transDict):
-		#if enough transactions  mine
-        newTrans = self.reconstructTrans(transDict);
-        print(newTrans);
-        print(newTrans.transaction_outputs)
-        if self.validate_transaction(newTrans):
-            self.currentBlock.add_transaction(newTrans);
-            for utxo in newTrans.transaction_inputs:
-                self.ring[utxo['id']]['utxos'].remove(utxo);
-            for utxo in newTrans.transaction_outputs:
-                self.ring[utxo['id']]['utxos'].append(utxo);
-                if utxo['id'] == str(self.id):
-                    self.myWallet.transactions.append(utxo)
-        if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
-            self.mine_block();
-            
-            
-    def mine_block(self):
-        self.mining = True;
-        self.otherNodeMined.clear();
-        while self.currentBlock.current_hash[:constants.MINING_DIFFICULTY] != '0' * constants.MINING_DIFFICULTY and not self.otherNodeMined.is_set():
-            self.currentBlock.nonce +=1;
-            self.currentBlock.current_hash = self.currentBlock.myHash();
-        self.mining = False;
-        if not self.otherNodeMined.is_set():
-            self.chain.add_block(self.currentBlock)
-            self.broadcast_block();
-            self.currentBlock = self.create_new_block();
-        
-    
-    
-    def broadcast_block(self):
-        for k in self.ring:
-            if k != self.id:
-                url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/receiveBlock";
-                requestData = self.currentBlock.to_json();
-                requests.post(url, data = requestData);
-    
-    
-    def valid_proof(self, blockToCheck):
-        return blockToCheck.current_hash[:constants.MINING_DIFFICULTY] == '0' * constants.MINING_DIFFICULTY and blockToCheck.previous_hash == self.chain.lastBlock().current_hash;
+        self.chain.get_addresses(self.ring, self.id)
 
-
-	#concencus functions
-
-#	def valid_chain(self, chain):
-		#check for the longer chain accroose all nodes
-
-
-#	def resolve_conflicts(self):
-		#resolve correct chain
+        for i, a in enumerate(self.ring[1:]):
+            self.wallet_dict={}
+            for public_key in self.public_key_list:
+                self.wallet_dict[public_key] = []
+            if not no_mine.isSet():
+                no_mine.wait()
+            self.send_trans(i+1, a,self.public_key_list[i+1])
+            #time.sleep(4)
 
 
 
+
+    def send_trans(self,i, a,receiver_address):
+        print("sending transaction to each node")
+        self.create_transaction(self.public_key_list[0],receiver_address,100)
+        print("my balance father", self.wallet.mybalance())
+        return self
+
+
+
+
+    def send(self,i, a):
+        print("sending info to each node")
+
+        """
+        message = {'id': i, 'ring': self.ring,'public_key_list':self.public_key_list,'gen_index': self.chain.list[0].index,
+                'gen_timestamp': self.chain.list[0].timestamp,
+                'gen_transactions': self.chain.list[0].listOfTransactions,
+                'gen_nonce': self.chain.list[0].nonce,
+                'gen_previous_hash': self.chain.list[0].previousHash}
+        """
+        message = {'id': i, 'ring': self.ring,'public_key_list':self.public_key_list,'genesis':self.chain.list[0].output()}
+        m = json.dumps(message)
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        res=requests.post(a + '/nodes/register', data = m,headers = headers)
+        print(res)
+        return self
+
+    def recieve(self, i, ring,keys,genesis):
+        print("receiving info!")
+        self.ring = copy.deepcopy(ring)
+        self.id = i
+        self.chain.get_addresses(self.ring, self.id)
+        #print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        self.public_key_list = copy.deepcopy(keys)
+        self.wallet_dict={}
+        for public_key in self.public_key_list:
+            self.wallet_dict[public_key] = []
+
+        new = block.Block(genesis['index'], genesis['nonce'], genesis['previous_hash'])
+        new.timestamp = genesis['timestamp']
+        new.listOfTransactions = genesis['transactions']
+        new.myHash()
+        self.chain.list.append(new)
+        mylist = new.listOfTransactions
+
+        tr = mylist[0]
+        print("transaction" , tr)
+
+        t1 = {'myid': tr['transaction_id'], 'value' : tr['value'] , 'receiver' : tr['receiver_address']}
+        self.wallet_dict[self.public_key_list[0]].append(t1)
+
+        return self
+
+    def my_reg(self):
+    	message = {'address' : "http://" + self.myip + ":" + self.port ,'public_key':self.wallet.public_key}
+    	r = requests.post(self.ring[0]+"/nodes/reg_dad", data = message)
+    	return r
+
+    def reg_a_node(self,a,mykey):
+        self.ring.append(a)
+        self.public_key_list.append(mykey)
+        self.current_id_count = self.current_id_count + 1
+        if(self.current_id_count == self.nei):
+            self.e.set()
+            print("geia xixi")
+
+
+    def create_transaction(self, sender, receiver, amount):
+        lista = self.wallet.transactions
+        my_sum = 0
+        utxo = []
+        ids = []
+        for i in range(0, len(lista)):
+            my_sum = my_sum + lista[i]['value']
+            utxo.append(lista[i]['myid'])
+            ids.append(lista[i])
+            if(my_sum >=amount):
+                break
+        if(my_sum < amount):
+            print("not enough nbc")
+            return
+        for i in ids:
+            #print(i)
+            lista.remove(i)
+
+        new = transaction.Transaction(sender, self.wallet.private_key, receiver, amount,copy.deepcopy(utxo))
+        #print("i am the new transaction hi", new.transaction_id)
+        t1 = {'myid': new.transaction_id, 'value' : amount , 'receiver' : receiver}
+        new.transaction_outputs = [t1]
+
+        if(my_sum>amount):
+            t2 = {'myid': new.transaction_id, 'value' : my_sum - amount , 'receiver' : sender}
+            new.transaction_outputs.append(t2)
+            lista.append(t2)
+
+        self.wallet.transactions = copy.deepcopy(lista)
+        self.wallet_dict[receiver].append(new.transaction_outputs[0])
+        self.wallet_dict[sender] = copy.deepcopy(lista)
+        new.Signature = new.sign_transaction(self.wallet.private_key)
+        self.broadcast_transaction(new)
+        self.chain.add_transaction(new)
+
+
+
+
+    def receive_trans(self,sender,receiver,value,myid,in_list,out_list,sign):
+
+        new=transaction.Transaction(sender,"0" , receiver, value,in_list)
+
+        new.transaction_outputs = out_list
+        new.Signature = sign
+        new.transaction_id=myid
+
+        if self.validate_transaction(new,sender,sign):
+            self.chain.add_transaction(new)
+            mylist = self.wallet_dict[sender]
+            for input_trans in new.transaction_inputs:
+                for index,utxoid in enumerate(mylist):
+                    if( input_trans==utxoid['myid']):
+                        mylist.remove(mylist[index])
+
+            self.wallet_dict[sender] = copy.deepcopy(mylist)
+            self.wallet_dict[receiver].append(new.transaction_outputs[0])
+            if(len(new.transaction_outputs)==2):
+                self.wallet_dict[sender].append(new.transaction_outputs[1])
+
+            if(receiver == self.wallet.public_key):
+                self.wallet.transactions.append(new.transaction_outputs[0])
+            print("my balance kid", self.wallet.mybalance())
+        print(self.wallet.transactions)
+
+        return
+
+
+
+    def validate_transaction(self, trans,sender,sign):
+        print("validating transaction...")
+        mylist = self.wallet_dict[sender]
+        cnt=0
+        for input_trans in trans.transaction_inputs:
+            for index,utxoid in enumerate(mylist):
+                if  input_trans==utxoid['myid']:
+                    cnt+=1
+
+        if cnt==len(trans.transaction_inputs) and self.verify_transaction_signature(sender,sign,trans):
+            print("Transaction validated")
+            return True
+
+        return False
+
+
+    def verify_transaction_signature(self, sender_address, signature, transaction):
+        """
+        Check that the provided signature corresponds to transaction
+        signed by the public key (sender_address)
+        """
+        public_key = RSA.importKey(binascii.unhexlify(sender_address))
+        verifier = PKCS1_v1_5.new(public_key)
+        temp = transaction.to_dict2()
+        h = SHA.new(str(temp).encode('utf8'))
+        print("verify_transaction_signature ",verifier.verify(h, binascii.unhexlify(signature)))
+        return verifier.verify(h, binascii.unhexlify(signature))
+
+
+    def broadcast_transaction(self,trans):
+        print("Broadcast_transaction to all except me")
+        message = { 'sender':trans.sender_address, 'receiver' : trans.receiver_address, 'value': trans.value, 'myid': trans.transaction_id, 'inputs':trans.transaction_inputs, 'outputs':trans.transaction_outputs, 'sign': trans.Signature}
+        m = json.dumps(message)
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        for rin in self.ring:
+            if not(rin == self.ring[self.id]):
+                requests.post(rin+"/transactions/new", data = m , headers=headers)
+        return
+
+    def verify_and_add_block(self, orderedInfoBlock):
+        if not orderedInfoBlock['previous_hash'] == self.chain.list[-1].hash:
+            return False
+        else:
+            new = block.Block(orderedInfoBlock['index'], orderedInfoBlock['nonce'], orderedInfoBlock['previous_hash'])
+            new.timestamp = orderedInfoBlock['timestamp']
+            new.listOfTransactions = orderedInfoBlock['transactions']
+            if new.verify_hash(orderedInfoBlock['current_hash']):
+                # have verified block, so we set this flag before we add it to our blockchain
+                self.chain.e.set()
+
+                self.chain.list.append(new)
+                return True
+            else:
+                return False
