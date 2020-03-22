@@ -84,6 +84,7 @@ def registerNewNode():
 
 @app.route('/receiveTransaction', methods=['POST'])
 def receiveTransaction():
+    thisNode.allow.wait();
     requestData = json.loads(request.data)
     thisNode.add_transaction_to_block(requestData);
     

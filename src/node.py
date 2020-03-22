@@ -22,6 +22,7 @@ class node:
         self.otherNodeMined.clear();
         self.mining = False;
         self.allow = threading.Event();
+        self.allow.set();
         self.ip = myIp;
         self.port = myPort;
         self.ipBootstrap = ipBootstrap;
@@ -123,6 +124,7 @@ class node:
     
     def register_node_to_ring(self, newNodeIp, newNodePort, newNodeAddress):
         print("register node to ring kollo dame");
+        self.allow.wait();
 		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
         if self.current_id_count == self.number:
@@ -220,6 +222,7 @@ class node:
         self.broadcast_transaction(newTrans);
         self.currentBlock.add_transaction(newTrans);
         if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
+            self.allow.clear();
             stM = threading.Thread(target = self.dummy3);
             stM.start()
             
@@ -245,6 +248,7 @@ class node:
                 if utxo['id'] == str(self.id):
                     self.myWallet.transactions.append(utxo)
         if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
+            self.allow.clear()
             stM = threading.Thread(target = self.dummy3);
             stM.start();
             
@@ -257,6 +261,7 @@ class node:
             self.currentBlock.nonce +=1;
             self.currentBlock.current_hash = self.currentBlock.myHash();
         self.mining = False;
+        self.allow.set();
         if not self.otherNodeMined.is_set():
             self.chain.add_block(self.currentBlock)
             self.broadcast_block();
@@ -267,7 +272,7 @@ class node:
     def broadcast_block(self):
         print("broadcast block kollo dame");
         for k in self.ring:
-            if k != self.id:
+            if k != str(self.id):
                 url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/receiveBlock";
                 requestData = self.currentBlock.to_json();
                 requests.post(url, data = requestData);
