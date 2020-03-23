@@ -102,6 +102,7 @@ def receiveBlock():
         print(thisNode.chain.length)
         return '{"message": "block received!"}', 200;
 
+    thisNode.resolve_conflicts();
     return '{"message": "block wasnt right!"}', 402;
 
 @app.route("/receiveNewNodeInfo", methods=['POST'])
