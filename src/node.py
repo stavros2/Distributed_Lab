@@ -145,7 +145,7 @@ class node:
         
     
     def reconstructChain(self, chainJson):
-        #input is a dictionary. outputs a Blockchain Object
+        #input is a json. outputs a Blockchain Object
         chainDict = json.loads(chainJson);
         newL = chainDict['length'];
         newList = chainDict['listOfBlocks']
@@ -212,6 +212,7 @@ class node:
         self.broadcast_transaction(newTrans);
         self.currentBlock.add_transaction(newTrans);
         if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
+            self.mining = True;
             self.allow.clear();
             stM = threading.Thread(target = self.dummy3);
             stM.start()
@@ -236,6 +237,7 @@ class node:
                 if utxo['id'] == str(self.id):
                     self.myWallet.transactions.append(utxo)
         if len(self.currentBlock.listOfTransactions) == constants.CAPACITY:
+            self.mining = True;
             self.allow.clear()
             stM = threading.Thread(target = self.dummy3);
             stM.start();
@@ -286,12 +288,16 @@ class node:
             if k != str(self.id):
                 url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/printChain";
                 response = requests.get(url);
+                
+                print(type(response.json()))
                 responseDict = json.loads(response.json());
-                if responseDict['length'] > maxLength:
+                print(type(responseDict))
+                if int(responseDict['length']) > maxLength:
                     maxChain = responseDict;
+                    maxLength = int(responseDict['length']);
         
         if maxLength > self.chain.length:
-            self.chain = self.reconstructChain(maxChain);
+            self.chain = self.reconstructChain(json.dumps(maxChain));
 
 
 

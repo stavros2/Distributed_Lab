@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from argparse import ArgumentParser
 import json
-
+from time import sleep
 
 import node
 import constants;
@@ -32,7 +32,7 @@ def viewTransactions():
 
 @app.route('/newTransaction', methods=['POST'])
 def newTranscation():
-    requestData = request.data
+    requestData = request.data.decode()
     requestData = json.loads(requestData);
     nodeID = int(requestData['id'][2::]);
     amount = int(requestData['amount']);
@@ -50,14 +50,11 @@ def newTranscation():
         response = {'message': 'You cannot transfer money to yourself'}
         return jsonify(response), 401
     
-    if thisNode.mining:
-        response = {'message': 'You cannot make a transactions now as a block is still being mined!'}
-        return jsonify(response), 502
+    while thisNode.mining:
+        sleep(1);
     
     thisNode.create_transaction(nodeID, amount);
-    print("Back to REST")
     response = {'message': ('Sending ' + str(amount) + ' to node ' + str(nodeID))};
-    print("Everything OK")
     return jsonify(response), 200;
 
 @app.route('/getBalance', methods=['GET'])
@@ -75,7 +72,7 @@ def getBalance():
 
 @app.route('/registerNewNode', methods=['POST'])
 def registerNewNode():
-    requestData = json.loads(request.data)
+    requestData = json.loads(request.data.decode())
     nodeIp = requestData['ip'];
     nodePort = requestData['port'];
     nodeAddress = requestData['address'];
@@ -85,29 +82,30 @@ def registerNewNode():
 @app.route('/receiveTransaction', methods=['POST'])
 def receiveTransaction():
     thisNode.allow.wait();
-    requestData = json.loads(request.data)
+    requestData = json.loads(request.data.decode())
     thisNode.add_transaction_to_block(requestData);
     
     return '{"message": "transaction recieved!"}', 200;
 
 @app.route('/receiveBlock', methods=['POST'])
 def receiveBlock():
-    requestData = json.loads(request.data)
+    requestData = json.loads(request.data.decode())
 
     blockInCheck = thisNode.reconstructBlock(requestData)
     if thisNode.valid_proof(blockInCheck):
         thisNode.otherNodeMined.set();
         thisNode.chain.add_block(blockInCheck);
         thisNode.currentBlock = thisNode.create_new_block();
-        print(thisNode.chain.length)
         return '{"message": "block received!"}', 200;
 
+    thisNode.otherNodeMined.set();
     thisNode.resolve_conflicts();
+    thisNode.currentBlock = thisNode.create_new_block();
     return '{"message": "block wasnt right!"}', 402;
 
 @app.route("/receiveNewNodeInfo", methods=['POST'])
 def receiveNewNodeInfo():
-    requestData = json.loads(request.data);
+    requestData = json.loads(request.data.decode());
     nodeID = requestData.pop('id');
     thisNode.ring[nodeID] = requestData;
     
@@ -137,4 +135,4 @@ if __name__ == '__main__':
     bootstrapAddress = args.bootstrapaddress;
     bootstrapPort = args.bootstrapport
     thisNode = node.node(address, port, isIt, bootstrapAddress, bootstrapPort, constants.NODES);
-    app.run(host='127.0.0.1', port=port, threaded= True)
+    app.run(host=address, port=port, threaded= True)
