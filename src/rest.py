@@ -23,16 +23,18 @@ def viewTransactions():
     text = ''; 
     for trans in lastBlock.listOfTransactions:
         #text += json.dumps(trans.to_dict())
-        text += str(trans.transaction_id);
-        text += ' ';
-        text += str(trans.amount)
-        text += ' ';
+        text += "{tid: " + str(trans.transaction_id);
+        text += ", sender: " + str(trans.sender_address);
+        text += ", recipient: "  + str(trans.receiver_address);
+        text += ", amount:"  + str(trans.amount);
+        text += '}, ';
+    text= text[:-2];
     response = {'transactions': text};
     return jsonify(response), 200;
 
 @app.route('/newTransaction', methods=['POST'])
 def newTranscation():
-    requestData = request.data.decode()
+    requestData = request.data
     requestData = json.loads(requestData);
     nodeID = int(requestData['id'][2::]);
     amount = int(requestData['amount']);
@@ -59,20 +61,20 @@ def newTranscation():
 
 @app.route('/getBalance', methods=['GET'])
 def getBalance():
-    #balance = thisNode.myWallet.balance();
-    #response = {'balance': balance};
-    response = {}
+    balance = thisNode.myWallet.balance();
+    response = {'balance': balance};
+    """  response = {}
     for nodeI in thisNode.ring:
         nodeBal = 0 ;
         for utxo in thisNode.ring[nodeI]['utxos']:
             nodeBal += utxo['amount'];
         response[nodeI] = nodeBal;
-    response['maBalance'] = thisNode.myWallet.balance()
+    response['maBalance'] = thisNode.myWallet.balance() """
     return jsonify(response), 200
 
 @app.route('/registerNewNode', methods=['POST'])
 def registerNewNode():
-    requestData = json.loads(request.data.decode())
+    requestData = json.loads(request.data)
     nodeIp = requestData['ip'];
     nodePort = requestData['port'];
     nodeAddress = requestData['address'];
@@ -82,14 +84,14 @@ def registerNewNode():
 @app.route('/receiveTransaction', methods=['POST'])
 def receiveTransaction():
     thisNode.allow.wait();
-    requestData = json.loads(request.data.decode())
+    requestData = json.loads(request.data)
     thisNode.add_transaction_to_block(requestData);
     
     return '{"message": "transaction recieved!"}', 200;
 
 @app.route('/receiveBlock', methods=['POST'])
 def receiveBlock():
-    requestData = json.loads(request.data.decode())
+    requestData = json.loads(request.data)
 
     blockInCheck = thisNode.reconstructBlock(requestData)
     if thisNode.valid_proof(blockInCheck):
@@ -105,7 +107,7 @@ def receiveBlock():
 
 @app.route("/receiveNewNodeInfo", methods=['POST'])
 def receiveNewNodeInfo():
-    requestData = json.loads(request.data.decode());
+    requestData = json.loads(request.data);
     nodeID = requestData.pop('id');
     thisNode.ring[nodeID] = requestData;
     

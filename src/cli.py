@@ -24,9 +24,11 @@ def printHelp():
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
+    parser.add_argument('-a', '--address', default = '127.0.0.1', help='public accessible ip address');
     args = parser.parse_args();
     port = args.port;
-    baseURL =  "http://127.0.0.1:" + str(port) + "/"
+    address = args.address;
+    baseURL =  "http://" + address + ":" + str(port) + "/"
     
     print("Welcome to the Noobcash CLIent");
     printHelp()

@@ -289,9 +289,7 @@ class node:
                 url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/printChain";
                 response = requests.get(url);
                 
-                print(type(response.json()))
                 responseDict = json.loads(response.json());
-                print(type(responseDict))
                 if int(responseDict['length']) > maxLength:
                     maxChain = responseDict;
                     maxLength = int(responseDict['length']);
