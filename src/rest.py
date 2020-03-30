@@ -19,7 +19,8 @@ CORS(app)
 
 @app.route('/viewTransactions', methods=['GET'])
 def viewTransactions():
-    lastBlock = thisNode.chain.listOfBlocks[thisNode.chain.length - 1];
+    # view the transactions included in the last block
+    lastBlock = thisNode.chain.lastBlock();
     text = ''; 
     for trans in lastBlock.listOfTransactions:
         #text += json.dumps(trans.to_dict())
@@ -34,11 +35,22 @@ def viewTransactions():
 
 @app.route('/newTransaction', methods=['POST'])
 def newTranscation():
+    # create a new transaction using data from the request
     requestData = request.data
     requestData = json.loads(requestData);
-    nodeID = int(requestData['id'][2::]);
+    nodeID = requestData['id'][2::];
     amount = int(requestData['amount']);
     bal = thisNode.myWallet.balance();
+    
+    if not nodeID.isnumeric():
+        response = {'message': 'The receiver must be given in format idX'}
+        return jsonify(response), 401
+        
+    if not nodeID in thisNode.ring:
+        response = {'message': "Node doesn't exist!"}
+        return jsonify(response), 401
+    
+    nodeID = int(nodeID)
     
     if bal < amount:
         response = {'message': 'Not enough money!'}
@@ -61,6 +73,7 @@ def newTranscation():
 
 @app.route('/getBalance', methods=['GET'])
 def getBalance():
+    # return the balance available for thisnode
     balance = thisNode.myWallet.balance();
     response = {'balance': balance};
     """  response = {}
@@ -74,6 +87,7 @@ def getBalance():
 
 @app.route('/registerNewNode', methods=['POST'])
 def registerNewNode():
+    # register a new node to the ring
     requestData = json.loads(request.data)
     nodeIp = requestData['ip'];
     nodePort = requestData['port'];
@@ -83,6 +97,7 @@ def registerNewNode():
 
 @app.route('/receiveTransaction', methods=['POST'])
 def receiveTransaction():
+    # receive a new transaction if the node is not mining
     thisNode.allow.wait();
     requestData = json.loads(request.data)
     thisNode.add_transaction_to_block(requestData);
@@ -91,6 +106,7 @@ def receiveTransaction():
 
 @app.route('/receiveBlock', methods=['POST'])
 def receiveBlock():
+    # receive a new block
     requestData = json.loads(request.data)
 
     blockInCheck = thisNode.reconstructBlock(requestData)
@@ -107,6 +123,7 @@ def receiveBlock():
 
 @app.route("/receiveNewNodeInfo", methods=['POST'])
 def receiveNewNodeInfo():
+    # receive info for a new node who just entered the ring
     requestData = json.loads(request.data);
     nodeID = requestData.pop('id');
     thisNode.ring[nodeID] = requestData;
@@ -115,10 +132,12 @@ def receiveNewNodeInfo():
 
 @app.route("/printBlock", methods=['GET'])
 def printBlock():
+    # print the current block
     return jsonify(thisNode.currentBlock.to_json()), 200;
 
 @app.route("/printChain", methods=['GET'])
 def printChain():
+    #prin the chain
     return jsonify(thisNode.chain.to_json()), 200;
 
 # run it once fore every node
@@ -136,5 +155,5 @@ if __name__ == '__main__':
     address = args.address;
     bootstrapAddress = args.bootstrapaddress;
     bootstrapPort = args.bootstrapport
-    thisNode = node.node(address, port, isIt, bootstrapAddress, bootstrapPort, constants.NODES);
+    thisNode = node.node(address, port, isIt, bootstrapAddress, bootstrapPort, constants.NODES);  # create a node object. everything is stored here
     app.run(host=address, port=port, threaded= True)

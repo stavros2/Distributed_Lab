@@ -1,3 +1,4 @@
-CAPACITY = 1;
-MINING_DIFFICULTY = 5;
+# all the important constants for the system are stored here
+CAPACITY = 5;
+MINING_DIFFICULTY = 4;
 NODES = 5;

@@ -17,6 +17,7 @@ from time import sleep
 
 class node:
     def __init__(self, myIp, myPort, imeBootstrap, ipBootstrap, portBootstrap, N):
+        # initializing the values. If the node is the bootstrap node he initzalizes the ring and th chain as well
         self.otherNodeMined = threading.Event();
         self.otherNodeMined.clear();
         self.mining = False;
@@ -63,6 +64,7 @@ class node:
             self.currentBlock = self.create_new_block()
 
     def verify_transaction(self, trans):
+        # verifying the transaction using the public_key and the signature of the transaction object
         transDict = trans.to_dict();
         transDict.pop('signature');
         transString = json.dumps(transDict);
@@ -118,9 +120,9 @@ class node:
         self.mine_block();
     
     def register_node_to_ring(self, newNodeIp, newNodePort, newNodeAddress):
-        self.allow.wait();
-		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
+       #add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
+        self.allow.wait();
         if self.current_id_count == self.number:
             return("{message: ring full}");
         
@@ -139,7 +141,6 @@ class node:
         
         sendInfo = threading.Thread(target = self.dummy2, args=(str(self.current_id_count), newNodeIp,newNodePort, newNodeAddress,))
         sendInfo.start();
-        #self.create_transaction(self.current_id_count, 100);
         self.current_id_count += 1;
         return message;
         
@@ -186,8 +187,7 @@ class node:
         return tempTrans;
         
     def create_transaction(self, receiver, amount):
-		#remember to broadcast it
-        #REMEMBER TO ADD UTXOS
+		# creating a new transaction and broadcasting it
         inputUTXOS = [];
         outputUTXOS = [];
         myAmount = 0;
@@ -218,6 +218,7 @@ class node:
             stM.start()
             
     def broadcast_transaction(self, trans):
+        # sending the transaction to every node in the ring
         for k in self.ring:
             if k != str(self.id):
                 url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/receiveTransaction";
@@ -226,7 +227,7 @@ class node:
                 
                 
     def add_transaction_to_block(self, transDict):
-		#if enough transactions  mine
+		#adding a transaction to the bloc. if number_of_transactions == CAPACITY  mine
         newTrans = self.reconstructTrans(transDict);
         if self.validate_transaction(newTrans):
             self.currentBlock.add_transaction(newTrans);
@@ -244,6 +245,7 @@ class node:
             
             
     def mine_block(self):
+        # change the status of this node to mining and start looking for the nonce
         self.mining = True;
         self.otherNodeMined.clear();
         while self.currentBlock.current_hash[:constants.MINING_DIFFICULTY] != '0' * constants.MINING_DIFFICULTY and not self.otherNodeMined.is_set():
@@ -260,6 +262,7 @@ class node:
     
     
     def broadcast_block(self):
+        # sending the block to every node in the ring
         for k in self.ring:
             if k != str(self.id):
                 url = "http://" + self.ring[k]['ip'] + ":" + str(self.ring[k]['port']) +"/receiveBlock";
@@ -268,6 +271,7 @@ class node:
     
     
     def valid_proof(self, blockToCheck):
+        # checking the validity of a received block
         return blockToCheck.current_hash[:constants.MINING_DIFFICULTY] == '0' * constants.MINING_DIFFICULTY and blockToCheck.previous_hash == self.chain.lastBlock().current_hash
 
 
@@ -281,7 +285,7 @@ class node:
         return True;
     
     def resolve_conflicts(self):
-        #resolve correct chain
+        # asking all the nodes for the length of their chains and picking the longest
         maxLength = self.chain.length;
         maxChain = {};
         for k in self.ring:

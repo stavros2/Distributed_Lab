@@ -30,7 +30,7 @@ class Block:
         self.current_hash = self.myHash();
         
     def to_json(self):
-        #create a json representation of the block object. 
+        #create a json representation of the block object to be send
         blockDict = copy.deepcopy(self.__dict__);
         string = json.dumps(blockDict, default = transaction.Transaction.to_dict);
         return string

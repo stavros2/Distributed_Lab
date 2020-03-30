@@ -7,11 +7,13 @@ def printNewLine():
     print("--------------------------------------------");
 
 def terminating(sig, frame):
+    # a signal handler for ctrl+C (SIGINT) 
     exit()
 
 signal.signal(signal.SIGINT, terminating);
 
 def printHelp():
+    # the help message 
     print("You can select one of the following commands");
     printNewLine();
     print("t <node id> <amount>: To create a new transaction of amount @amount from you to user with id @id");

@@ -9,19 +9,15 @@ class blockchain():
         
         
     def add_block(self, blockItem):
+        # add a block to the chain. Update length accordingly
         self.listOfBlocks.append(blockItem);
         self.length += 1;
         
-    def get_transactions(self):
-        trans = [];
-        for blockItem in self.listOfBlocks:
-            for tran in blockItem.listOfTransactions:
-                trans.append(tran);
-        return trans;
-    
     def to_json(self):
+        # create a JSON message of the blockchain to be send
         blockchainDict = copy.deepcopy(self.__dict__);
         return json.dumps(blockchainDict, default = block.Block.to_json)
     
     def lastBlock(self):
+        # return the last block of the chain
         return self.listOfBlocks[self.length - 1]

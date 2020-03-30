@@ -35,6 +35,7 @@ class Transaction:
 
 
     def outputUTXOS(self, receiverID, senderID):
+        # calculating the transaction outputs
         mysum = 0;
         temp = [];
         for utxo in self.transaction_inputs:
@@ -45,15 +46,15 @@ class Transaction:
         self.transaction_outputs = temp;
         
     def add_utxos(self, utxos):
+        # adding the transaction inputs for this transaction
         self.transaction_inputs = utxos;
         
     def to_dict(self):
+        # return a dictionary representation of the object
         return copy.deepcopy(self.__dict__)
 
     def sign_transaction(self, keyBytes):
-        """
-        Sign transaction with private key
-        """
+        # signing the transaction with the private key given in __init__
         key = RSA.importKey(binascii.unhexlify(keyBytes))
         message = self.to_dict();
         string = json.dumps(message)
