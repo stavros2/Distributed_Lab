@@ -12,7 +12,7 @@ class wallet:
 
     def balance(self):
         # return the balance of the wallet by adding all the available UTXO's
-        sum = 0;
+        mysum = 0;
         for transaction in self.transactions:
-            sum += transaction['amount'];
-        return sum;
+            mysum += transaction['amount'];
+        return mysum;
